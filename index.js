@@ -34,11 +34,19 @@ async function run() {
         const userCollection = client.db('matrimony').collection('users')
 
 
-        app.post('/post/user', async (req, res) => {
+        // post new user
+        app.post("/post/user", async (req, res) => {
             const newUser = req.body;
-            const result = await userCollection.insertOne(newUser);
-            res.send(result)
-        })
+            const query = { email: newUser.email };
+            const existingUser = await userCollection.find(query).toArray();
+            // console.log(existingUser.length)
+
+            if (existingUser.length === 0) {
+                const result = await userCollection.insertOne(newUser);
+                return res.send(result);
+            }
+            return res.send({ message: "User already exist" });
+        });
 
         console.log('Database connected succesfully')
     } finally {

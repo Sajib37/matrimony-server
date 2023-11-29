@@ -2,24 +2,39 @@ const express = require("express");
 const app = express();
 const port = process.env.PORT || 5000;
 const cors = require("cors");
+const jwt = require("jsonwebtoken");
 require("dotenv").config();
-
-
 
 // middleWares
 app.use(cors());
 app.use(express.json());
 
+// verify token
+const verifyToken = (req, res, next) => {
+    // console.log('Inside verify Token :', req.headers.authorization)
+    if (!req.headers.authorization) {
+        return res.status(401).send({ message: "Unauthorized Access" });
+    }
+    const token = req.headers.authorization.split(" ")[1];
 
+    // verify the token
+    jwt.verify(token, process.env.ACCESS_TOKEN_SECRET, (err, decoded) => {
+        if (err) {
+            // console.log('invalid token')
+            return res.status(401).send({ message: "Unauthorized Access" });
+        }
+        req.decoded = decoded;
+        next();
+    });
+};
 
 app.get("/", (req, res) => {
     res.send(`Server is running on PORT: ${port}`);
 });
 
-
 // Database connection
 const { MongoClient, ServerApiVersion } = require("mongodb");
-const uri =`mongodb+srv://${process.env.DB_USER}:${process.env.DB_PASSWORD}@cluster0.f30vajg.mongodb.net/?retryWrites=true&w=majority`;
+const uri = `mongodb+srv://${process.env.DB_USER}:${process.env.DB_PASSWORD}@cluster0.f30vajg.mongodb.net/?retryWrites=true&w=majority`;
 const client = new MongoClient(uri, {
     serverApi: {
         version: ServerApiVersion.v1,
@@ -30,9 +45,35 @@ const client = new MongoClient(uri, {
 
 async function run() {
     try {
-        
-        const userCollection = client.db('matrimony').collection('users')
+        // all collections are here
+        const userCollection = client.db("matrimony").collection("users");
 
+
+        // middleWare for verify admin
+        // Verify admin after verify token
+        const verifyAdmin = async (req, res, next) => {
+            const email = req.decoded.email;
+            const query = { email: email };
+            const user = await userCollection.findOne(query);
+            const isAdmin = user?.role === "admin";
+            if (!isAdmin) {
+              return res.status(403).send({ message: 'forbidden access' })
+              
+            }
+          next()
+        };
+
+        // jwt token create send to the client
+        // JWT related apis
+        app.post("/jwt", async (req, res) => {
+            const user = req.body;
+            const token = jwt.sign(user, process.env.ACCESS_TOKEN_SECRET, {
+                expiresIn: "1h",
+            });
+
+            console.log(token);
+            res.send({ token });
+        });
 
         // post new user
         app.post("/post/user", async (req, res) => {
@@ -48,7 +89,33 @@ async function run() {
             return res.send({ message: "User already exist" });
         });
 
-        console.log('Database connected succesfully')
+        // get user
+        app.get("/get/users", verifyToken,verifyAdmin, async (req, res) => {
+            const result = await userCollection.find().toArray();
+            res.send(result);
+        });
+
+
+
+        // Check admin by email
+        app.get("/user/admin/:email", verifyToken, async (req, res) => {
+            const email = req.params.email;
+            if (email !== req.decoded.email) {
+                return res.status(403).send({ message: "forbidden access" });
+            }
+            const query = { email: email };
+            const user = await userCollection.findOne(query);
+
+            let admin = false;
+            if (user) {
+                admin = user?.role === "admin";
+            }
+
+            console.log(admin);
+            res.send(admin);
+        });
+
+        console.log("Database connected succesfully");
     } finally {
     }
 }

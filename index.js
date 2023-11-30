@@ -47,6 +47,8 @@ async function run() {
     try {
         // all collections are here
         const userCollection = client.db("matrimony").collection("users");
+        const biodataCollection = client.db("matrimony").collection("biodata")
+        const reviewCollection = client.db("matrimony").collection("review")
 
 
         // middleWare for verify admin
@@ -71,7 +73,7 @@ async function run() {
                 expiresIn: "1h",
             });
 
-            console.log(token);
+            // console.log(token);
             res.send({ token });
         });
 
@@ -80,21 +82,60 @@ async function run() {
             const newUser = req.body;
             const query = { email: newUser.email };
             const existingUser = await userCollection.find(query).toArray();
-            // console.log(existingUser.length)
+            // console.log(existingUser)
 
             if (existingUser.length === 0) {
                 const result = await userCollection.insertOne(newUser);
+                // console.log(" user posted")
                 return res.send(result);
             }
             return res.send({ message: "User already exist" });
         });
 
         // get user
-        app.get("/get/users", verifyToken,verifyAdmin, async (req, res) => {
+        app.get("/get/users",verifyToken ,verifyAdmin, async (req, res) => {
             const result = await userCollection.find().toArray();
             res.send(result);
         });
 
+        //get premium users
+        app.get("/premium/users", async (req, res) => {
+            const query = { member: 'premium' };
+            const result = await userCollection.find(query).toArray();
+            res.send(result)
+        })
+
+        // get biodata filtering by email
+
+        app.get("/biodata/:email", async (req, res) => {
+            const email = req.params.email;
+            // console.log(email)
+            const query = { email: email };
+            const result = await biodataCollection.findOne(query);
+            res.send(result)
+        })
+
+        // get all biodata
+        app.get("/biodata", async (req, res) => {
+            const result = await biodataCollection.find().toArray();
+            res.send(result)
+        })
+
+        // get biodata count
+        app.get("/biodataCount", async (req, res) => {
+            const total = await biodataCollection.estimatedDocumentCount()
+            const queryMale = { type: "male" }
+            const queryFemale = { type: "female" }
+            const male = await biodataCollection.find(queryMale).toArray();
+            const female = await biodataCollection.find(queryFemale).toArray();
+            res.send({total , male: male.length , female:female.length})
+        })
+
+        // get all success story or riview
+        app.get("/review", async (req, res) => {
+            const result = await reviewCollection.find().toArray();
+            res.send(result)
+        })
 
 
         // Check admin by email

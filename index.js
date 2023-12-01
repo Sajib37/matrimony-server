@@ -106,7 +106,6 @@ async function run() {
         })
 
         // get biodata filtering by email
-
         app.get("/biodata/:email", async (req, res) => {
             const email = req.params.email;
             // console.log(email)

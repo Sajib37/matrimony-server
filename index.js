@@ -114,6 +114,34 @@ async function run() {
             res.send(result)
         })
 
+        // post biodata
+        app.put("/update/biodata", async (req, res) => {
+            const newBiodata = req.body;
+            const existingBiodata = await biodataCollection.findOne({ email: newBiodata.email });
+        
+            const lastBiodata = await biodataCollection.find().sort({ biodataId: -1 }).limit(1).toArray();
+            
+            if (existingBiodata) {
+                const result = await biodataCollection.updateOne(
+                    { email: newBiodata.email },
+                    { $set: newBiodata }
+                );
+        
+                res.send(result)
+            }
+            else {
+                let biodataId = 1;
+        
+                if (lastBiodata.length > 0) {
+                    biodataId = lastBiodata[0].biodataId + 1;
+                }
+                newBiodata.biodataId = biodataId;
+                const result = await biodataCollection.insertOne(newBiodata);        
+                res.send(result)
+            }
+        });
+        
+
         // get all biodata
         app.get("/biodata", async (req, res) => {
             const result = await biodataCollection.find().toArray();
@@ -151,7 +179,7 @@ async function run() {
                 admin = user?.role === "admin";
             }
 
-            console.log(admin);
+            // console.log(admin);
             res.send(admin);
         });
 

@@ -49,6 +49,7 @@ async function run() {
         const userCollection = client.db("matrimony").collection("users");
         const biodataCollection = client.db("matrimony").collection("biodata")
         const reviewCollection = client.db("matrimony").collection("review")
+        const favouriteCollection= client.db("matrimony").collection("favourite")
 
 
         // middleWare for verify admin
@@ -111,6 +112,8 @@ async function run() {
             // console.log(email)
             const query = { email: email };
             const result = await biodataCollection.findOne(query);
+
+            console.log(result)
             res.send(result)
         })
 
@@ -161,6 +164,45 @@ async function run() {
         // get all success story or riview
         app.get("/review", async (req, res) => {
             const result = await reviewCollection.find().toArray();
+            res.send(result)
+        })
+
+        // post favourite profile email
+        app.post("/favourite", async (req, res) => {
+            const data = req.body;
+
+            const existingId = await favouriteCollection.findOne(({ biodataId: data.biodataId }))
+            
+            if (!existingId) {
+                const result = await favouriteCollection.insertOne(data)
+                return res.send(result)
+            }
+            
+            return res.send({message: "already added"})
+        })
+
+
+        // get favourite profile filtering by email
+
+        app.get("/favourite/:email", async (req, res) => {
+            const email = req.params.email            
+            const query = { email: email }            
+            const result = await favouriteCollection.find(query).toArray();
+            res.send(result)
+        })
+
+        // delet data filtering by email and biodataId
+        app.delete("/favourite/:id/:email" , async (req, res) => {
+            const id = req.params.id;
+
+            console.log(typeof (id))
+            
+            const email = req.params.email;
+
+            const query = { biodataId: parseInt(id), email: email }
+            
+            const result = await favouriteCollection.deleteOne(query)
+            
             res.send(result)
         })
 

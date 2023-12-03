@@ -49,7 +49,8 @@ async function run() {
         const userCollection = client.db("matrimony").collection("users");
         const biodataCollection = client.db("matrimony").collection("biodata")
         const reviewCollection = client.db("matrimony").collection("review")
-        const favouriteCollection= client.db("matrimony").collection("favourite")
+        const favouriteCollection = client.db("matrimony").collection("favourite")
+        const premiumRequestCollection = client.db("matrimony").collection("premiumRequest")
 
 
         // middleWare for verify admin
@@ -206,7 +207,56 @@ async function run() {
             res.send(result)
         })
 
+        // post request for premium
+        app.post("/premium", async (req, res) => {
+            const newRequest = req.body;
 
+            const existingRequest = await premiumRequestCollection.findOne({ email: newRequest.email })
+            if (!existingRequest) {
+                const result = await premiumRequestCollection.insertOne(newRequest);
+                return res.send(result)
+            }
+            return res.send({meassage : "already requested"})
+        })
+
+        // admin get the all premium requests
+        app.get("/premium",verifyToken , verifyAdmin, async (req, res) => {
+            const result = await premiumRequestCollection.find().toArray();
+            res.send(result)
+        })
+
+        // admin approved normal user to premium user
+        app.patch("/premium/:email",verifyToken, verifyAdmin, async (req, res) => {
+            const email = req.params.email;
+            // console.log(email)
+            const filter = { email: email };
+            const updateDoc = {
+                $set: {
+                    member: "premium",
+                },
+            };
+
+            const result = await userCollection.updateOne(filter, updateDoc)
+
+            res.send(result)
+        })
+
+        // make admin 
+        app.patch("/make/admin/:email",verifyToken , verifyAdmin, async (req, res) => {
+            const email = req.params.email;
+
+            const filter = { email: email }
+            const updateDoc = {
+                $set: {
+                    role : "admin"
+                }
+            }
+
+            const result = await userCollection.updateOne(filter, updateDoc)
+            
+            res.send(result)
+
+        })
         // Check admin by email
         app.get("/user/admin/:email", verifyToken, async (req, res) => {
             const email = req.params.email;
